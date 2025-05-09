@@ -11,6 +11,7 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var viewModel = AudioRecorderViewModel()
     @State private var showPermissionAlert = false
+    @State private var buttonScale: CGFloat = 1.0
     
     var body: some View {
         VStack {
@@ -19,13 +20,23 @@ struct ContentView: View {
                     .foregroundColor(.red)
                     .padding()
                     .multilineTextAlignment(.center)
-            } else {
-                WaveformView(samples: viewModel.normalizedSamples)
-                    .padding()
             }
+            WaveformView(samples: viewModel.normalizedSamples)
+                .padding()
+            Text("Samples: \(viewModel.normalizedSamples.count)")
+                .font(.caption)
+                .foregroundColor(.gray)
             Spacer()
             Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    buttonScale = 0.9
+                }
                 viewModel.toggleRecording()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        buttonScale = 1.0
+                    }
+                }
             }) {
                 Text(viewModel.isRecording ? "Stop" : "Record")
                     .font(.title)
@@ -33,6 +44,7 @@ struct ContentView: View {
                     .background(viewModel.isRecording ? Color.red : Color.green)
                     .foregroundColor(.white)
                     .clipShape(Capsule())
+                    .scaleEffect(buttonScale)
             }
             .disabled(!AVAudioSession.sharedInstance().recordPermission.isAuthorized)
             .alert(isPresented: $showPermissionAlert) {
