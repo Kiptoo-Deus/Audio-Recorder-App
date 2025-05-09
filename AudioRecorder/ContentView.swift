@@ -9,21 +9,33 @@ import AVFoundation
 
 struct ContentView: View {
     @StateObject private var viewModel = AudioRecorderViewModel()
-    @State private var isRecording = false
+    @State private var showPermissionAlert = false
     
     var body: some View {
         VStack {
             Spacer()
             Button(action: {
-                isRecording.toggle()
                 viewModel.toggleRecording()
             }) {
-                Text(isRecording ? "Stop" : "Record")
+                Text(viewModel.isRecording ? "Stop" : "Record")
                     .font(.title)
                     .padding()
-                    .background(isRecording ? Color.red : Color.green)
+                    .background(viewModel.isRecording ? Color.red : Color.green)
                     .foregroundColor(.white)
                     .clipShape(Capsule())
+            }
+            .disabled(!AVAudioSession.sharedInstance().recordPermission.isAuthorized)
+            .alert(isPresented: $showPermissionAlert) {
+                Alert(
+                    title: Text("Microphone Access Denied"),
+                    message: Text("Please enable microphone access in Settings to record audio."),
+                    primaryButton: .default(Text("Settings"), action: {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }),
+                    secondaryButton: .cancel()
+                )
             }
         }
         .onAppear {
@@ -32,10 +44,21 @@ struct ContentView: View {
     }
     
     private func requestMicrophonePermission() {
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
-            if !granted {
-                print("Microphone access denied")
+        switch AVAudioSession.sharedInstance().recordPermission {
+        case .undetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    if !granted {
+                        self.showPermissionAlert = true
+                    }
+                }
             }
+        case .denied:
+            showPermissionAlert = true
+        case .granted:
+            break
+        @unknown default:
+            break
         }
     }
 }
@@ -43,5 +66,11 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+    }
+}
+
+extension AVAudioSession.RecordPermission {
+    var isAuthorized: Bool {
+        return self == .granted
     }
 }
