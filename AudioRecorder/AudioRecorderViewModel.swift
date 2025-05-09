@@ -12,10 +12,10 @@ class AudioRecorderViewModel: ObservableObject {
     private let audioEngine = AVAudioEngine()
     @Published var audioSamples: [Float] = []
     @Published var isRecording = false
+    private let preferredSampleRate: Double = 44100
     
     init() {
         configureAudioSession()
-        setupAudioEngine()
     }
     
     func toggleRecording() {
@@ -23,6 +23,7 @@ class AudioRecorderViewModel: ObservableObject {
             audioEngine.inputNode.removeTap(onBus: 0)
             audioSamples.removeAll()
             isRecording = false
+            try? AVAudioSession.sharedInstance().setActive(false)
         } else {
             setupAudioEngine()
             isRecording = true
@@ -33,7 +34,9 @@ class AudioRecorderViewModel: ObservableObject {
         let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setCategory(.record, mode: .default, options: [])
+            try audioSession.setPreferredSampleRate(preferredSampleRate)
             try audioSession.setActive(true)
+            print("Audio session configured: \(audioSession.sampleRate) Hz")
         } catch {
             print("Failed to configure audio session: \(error)")
         }
@@ -46,19 +49,23 @@ class AudioRecorderViewModel: ObservableObject {
         // Validate format
         guard format.sampleRate > 0, format.channelCount > 0 else {
             print("Invalid audio format: sampleRate=\(format.sampleRate), channels=\(format.channelCount)")
+            isRecording = false
             return
         }
         
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, time in
+     
+        let targetFormat = AVAudioFormat(standardFormatWithSampleRate: preferredSampleRate, channels: format.channelCount) ?? format
+        
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: targetFormat) { buffer, time in
             guard let channelData = buffer.floatChannelData else { return }
             let frameLength = Int(buffer.frameLength)
             let samples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
             DispatchQueue.main.async {
                 self.audioSamples.append(contentsOf: samples)
-                if self.audioSamples.count > 1000 { // Limit buffer size
+                if self.audioSamples.count > 1000 {
                     self.audioSamples.removeFirst(self.audioSamples.count - 1000)
                 }
-                print("Captured \(frameLength) samples")
+                print("Captured \(frameLength) samples at \(buffer.format.sampleRate) Hz")
             }
         }
         
