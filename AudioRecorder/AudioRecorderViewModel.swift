@@ -11,8 +11,11 @@ import AVFoundation
 class AudioRecorderViewModel: ObservableObject {
     private let audioEngine = AVAudioEngine()
     @Published var audioSamples: [Float] = []
+    @Published var normalizedSamples: [Float] = [] // For visualization
     @Published var isRecording = false
     @Published var errorMessage: String?
+    private let maxSampleCount = 1000 // Limit for visualization
+    private let downsampleFactor = 10 // Take every 10th sample for rendering
     
     init() {
         configureAudioSession()
@@ -22,6 +25,7 @@ class AudioRecorderViewModel: ObservableObject {
         if isRecording {
             audioEngine.inputNode.removeTap(onBus: 0)
             audioSamples.removeAll()
+            normalizedSamples.removeAll()
             isRecording = false
             do {
                 try AVAudioSession.sharedInstance().setActive(false)
@@ -63,8 +67,16 @@ class AudioRecorderViewModel: ObservableObject {
             let samples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
             DispatchQueue.main.async {
                 self.audioSamples.append(contentsOf: samples)
-                if self.audioSamples.count > 1000 {
-                    self.audioSamples.removeFirst(self.audioSamples.count - 1000)
+                if self.audioSamples.count > self.maxSampleCount {
+                    self.audioSamples.removeFirst(self.audioSamples.count - self.maxSampleCount)
+                }
+                
+                // Normalize and downsample for visualization
+                let normalized = samples.map { abs($0) / 2.0 } // Scale to 0-0.5 for visibility
+                let downsampled = stride(from: 0, to: normalized.count, by: self.downsampleFactor).map { normalized[$0] }
+                self.normalizedSamples.append(contentsOf: downsampled)
+                if self.normalizedSamples.count > self.maxSampleCount / self.downsampleFactor {
+                    self.normalizedSamples.removeFirst(self.normalizedSamples.count - (self.maxSampleCount / self.downsampleFactor))
                 }
                 print("Captured \(frameLength) samples at \(buffer.format.sampleRate) Hz")
             }
