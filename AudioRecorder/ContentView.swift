@@ -13,6 +13,12 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .padding()
+                    .multilineTextAlignment(.center)
+            }
             Spacer()
             Button(action: {
                 viewModel.toggleRecording()
