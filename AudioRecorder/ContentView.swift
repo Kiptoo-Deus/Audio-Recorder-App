@@ -4,6 +4,7 @@
 //
 //  Created by Joel on 08/05/2025.
 //
+
 import SwiftUI
 import AVFoundation
 
@@ -18,6 +19,9 @@ struct ContentView: View {
                     .foregroundColor(.red)
                     .padding()
                     .multilineTextAlignment(.center)
+            } else {
+                WaveformView(samples: viewModel.normalizedSamples)
+                    .padding()
             }
             Spacer()
             Button(action: {
