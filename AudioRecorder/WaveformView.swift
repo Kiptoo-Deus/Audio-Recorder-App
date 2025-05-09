@@ -16,27 +16,23 @@ struct WaveformView: View {
                 let width = size.width
                 let height = size.height
                 let sampleCount = samples.count
-                guard sampleCount > 0 else { return }
+                guard sampleCount > 1 else { return }
                 
-                let step = width / Double(sampleCount)
+                let step = width / Double(sampleCount - 1)
                 let midY = height / 2
                 
                 path.move(to: CGPoint(x: 0, y: midY))
                 
                 for i in 0..<sampleCount {
                     let x = Double(i) * step
-                    let amplitude = Double(samples[i]) * height / 2 // Scale to half height
+                    let amplitude = Double(samples[i]) * height * 2 
                     path.addLine(to: CGPoint(x: x, y: midY - amplitude))
-                    path.addLine(to: CGPoint(x: x, y: midY + amplitude))
-                    path.addLine(to: CGPoint(x: x + step, y: midY + amplitude))
-                    path.addLine(to: CGPoint(x: x + step, y: midY - amplitude))
-                    path.closeSubpath()
                 }
             }
             
             context.stroke(path, with: .color(.blue), lineWidth: 2)
         }
-        .frame(height: 100) // Fixed height for waveform
+        .frame(height: 100)
         .background(Color.black.opacity(0.1))
     }
 }
