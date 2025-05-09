@@ -8,17 +8,29 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var isRecording = false
+    
     var body: some View {
         VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+            Spacer()
+            Button(action:{
+                isRecording.toggle()
+            }){
+                Text(isRecording ? "Stop" : "Record")
+                    .font(.title)
+                    .padding()
+                    .background(isRecording ? Color.red : Color.green)
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+            }
         }
-        .padding()
     }
 }
 
-#Preview {
-    ContentView()
+         struct ContentView_Previews: PreviewProvider {
+             static var previews: some View {
+                 
+             }
+    
 }
+
