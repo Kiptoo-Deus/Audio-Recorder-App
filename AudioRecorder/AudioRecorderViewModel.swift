@@ -11,23 +11,43 @@ import AVFoundation
 class AudioRecorderViewModel: ObservableObject {
     private let audioEngine = AVAudioEngine()
     @Published var audioSamples: [Float] = []
+    @Published var isRecording = false
     
     init() {
+        configureAudioSession()
         setupAudioEngine()
     }
     
     func toggleRecording() {
-        if audioEngine.isRunning {
+        if isRecording {
             audioEngine.inputNode.removeTap(onBus: 0)
             audioSamples.removeAll()
+            isRecording = false
         } else {
             setupAudioEngine()
+            isRecording = true
+        }
+    }
+    
+    private func configureAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(.record, mode: .default, options: [])
+            try audioSession.setActive(true)
+        } catch {
+            print("Failed to configure audio session: \(error)")
         }
     }
     
     private func setupAudioEngine() {
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
+        
+        // Validate format
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            print("Invalid audio format: sampleRate=\(format.sampleRate), channels=\(format.channelCount)")
+            return
+        }
         
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, time in
             guard let channelData = buffer.floatChannelData else { return }
@@ -46,6 +66,7 @@ class AudioRecorderViewModel: ObservableObject {
             try audioEngine.start()
         } catch {
             print("Audio engine failed to start: \(error)")
+            isRecording = false
         }
     }
 }
