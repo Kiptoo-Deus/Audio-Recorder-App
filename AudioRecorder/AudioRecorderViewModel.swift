@@ -9,7 +9,7 @@ import Foundation
 import AVFoundation
 
 class AudioRecorderViewModel: ObservableObject {
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine: AVAudioEngine
     @Published var audioSamples: [Float] = []
     @Published var normalizedSamples: [Float] = []
     @Published var isRecording = false
@@ -18,23 +18,15 @@ class AudioRecorderViewModel: ObservableObject {
     private let downsampleFactor = 10
     
     init() {
+        self.audioEngine = AVAudioEngine()
         configureAudioSession()
     }
     
     func toggleRecording() {
         if isRecording {
-            audioEngine.inputNode.removeTap(onBus: 0)
-            audioSamples.removeAll()
-            normalizedSamples.removeAll()
-            isRecording = false
-            do {
-                try AVAudioSession.sharedInstance().setActive(false)
-            } catch {
-                errorMessage = "Failed to deactivate audio session: \(error)"
-                print(errorMessage!)
-            }
+            stopRecording()
         } else {
-            setupAudioEngine()
+            startRecording()
         }
     }
     
@@ -50,14 +42,16 @@ class AudioRecorderViewModel: ObservableObject {
         }
     }
     
-    private func setupAudioEngine() {
+    private func startRecording() {
+        // Reset audio engine to ensure clean state
+        audioEngine = AVAudioEngine()
+        configureAudioSession()
+        
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
         
-        // Log format details
         print("Input format: \(format.sampleRate) Hz, \(format.channelCount) channels")
         
-        // Validate format
         guard format.sampleRate > 0, format.channelCount > 0 else {
             errorMessage = "Invalid audio format: sampleRate=\(format.sampleRate), channels=\(format.channelCount)"
             print(errorMessage!)
@@ -80,7 +74,6 @@ class AudioRecorderViewModel: ObservableObject {
                     self.audioSamples.removeFirst(self.audioSamples.count - self.maxSampleCount)
                 }
                 
-                // Normalize and downsample
                 let normalized = samples.map { abs($0) / 2.0 }
                 let downsampled = stride(from: 0, to: normalized.count, by: self.downsampleFactor).map { normalized[$0] }
                 self.normalizedSamples.append(contentsOf: downsampled)
@@ -99,6 +92,21 @@ class AudioRecorderViewModel: ObservableObject {
             errorMessage = "Audio engine failed to start: \(error)"
             print(errorMessage!)
             isRecording = false
+        }
+    }
+    
+    private func stopRecording() {
+        audioEngine.inputNode.removeTap(onBus: 0)
+        audioEngine.stop()
+        audioSamples.removeAll()
+        normalizedSamples.removeAll()
+        isRecording = false
+        do {
+            try AVAudioSession.sharedInstance().setActive(false)
+            print("Audio session deactivated")
+        } catch {
+            errorMessage = "Failed to deactivate audio session: \(error)"
+            print(errorMessage!)
         }
     }
 }
